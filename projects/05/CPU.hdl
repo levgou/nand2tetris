@@ -39,5 +39,56 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+
+    // OP code
+    And(a=instruction[15], b=true, out=Copcode);
+    Not(in=Copcode, out=Aopcode);
+
+    // A input MUX
+    And(a=instruction[5], b=Copcode, out=WaluToA);
+    Mux16(a=instruction, b=aluOut, sel=WaluToA, out=AregIn);
+
+    // A Register
+    Or(a=Aopcode, b=WaluToA, out=WtoA);
+    ARegister(in=AregIn, load=WtoA, out=AregOut, out[0..14]=addressM);
+
+    // D register
+    And(a=Copcode, b=instruction[4], out=WtoD);
+    DRegister(in=aluOut, load=WtoD, out=DregOut);
+
+    // ALU 2nd input MUX
+    Mux16(a=AregOut, b=inM, sel=instruction[12], out=AorMem);
+
+    // ALU
+    ALU(x=DregOut, y=AorMem, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluOut, out=outM, zr=ZERO, ng=NEG);
+    Not(in=NEG, out=NonNEG);
+    Not(in=ZERO, out=NonZero);
+    And(a=NonNEG, b=NonZero, out=POS);
+    Or(a=NEG, b=ZERO, out=NonPOS);
+
+    // Do we write to Mem?
+    And(a=Copcode, b=instruction[3], out=writeM);
+
+    // Jump -----------------------
+    And(a=instruction[0], b=instruction[1], out=J23);
+    And(a=instruction[1], b=instruction[2], out=J12);
+    And(a=instruction[0], b=instruction[2], out=J13);
+
+    And(a=J23, b=instruction[2], out=JMP);
+    And(a=J12, b=NonPOS, out=JLE);
+    And(a=J13, b=NonZero, out=JNE);
+    And(a=instruction[2], b=NEG, out=JLT);
+    And(a=J23, b=NonNEG, out=JGE);
+    And(a=instruction[1], b=ZERO, out=JEQ);
+    And(a=instruction[0], b=POS, out=JGT);
+
+    Or8Way(in[0]=JMP, in[1]=JLE, in[2]=JNE,in[3]=JLT,in[4]=JGE,in[5]=JEQ,in[6]=JGT,out=WantJMP);
+    And(a=WantJMP, b=Copcode, out=DoJMP);
+
+    Not(in=JMP, out=NoJMP);
+    Or(a=NoJMP, b=Aopcode, out=incPC);
+    // Jump -----------------------
+
+    // PC
+    PC(in=AregOut, load=DoJMP, inc=incPC, reset=reset, out[0..14]=pc);
 }

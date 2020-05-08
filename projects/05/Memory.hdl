@@ -27,5 +27,35 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    Not(in=address[14], out=ram);
+    And(a=load, b=ram, out=RAMload);
+
+    RAM16K(in=in, load=RAMload, address=address[0..13], out=RAMout);
+    Mux16(a=false, b=RAMout, sel=ram, out=actualRAMout);
+
+    Not(in=address[13], out=noKEYload);
+
+    And(a=address[14], b=noKEYload, out=SCREENload);
+
+    And(a=SCREENload, b=address[12], out=SCREEN2);
+    And(a=SCREEN2, b=load, out=Sl2);
+    Not(in=address[12], out=F);
+    And(a=SCREENload, b=F, out=SCREEN1);
+    And(a=SCREEN1, b=load, out=Sl1);
+
+    RAM4K(in=in, load=Sl1, address=address[0..11], out=S1);
+    Mux16(a=false, b=S1, sel=SCREEN1, out=S1actual);
+
+    RAM4K(in=in, load=Sl2, address=address[0..11], out=S2);
+    Mux16(a=false, b=S2, sel=SCREEN2, out=S2actual);
+
+    And(a=address[14], b=address[13], out=K1);
+    And(a=K1, b=address[12], out=Kread);
+    
+    Register(in=in, load=false, out=Kout);
+    Mux16(a=false, b=Kout, sel=Kread, out=Kactual);
+
+    Or16(a=S1actual, b=S2actual, out=S);
+    Or16(a=actualRAMout, b=Kactual, out=RK);
+    Or16(a=S, b=RK, out=out);
 }
